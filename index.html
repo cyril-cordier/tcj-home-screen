@@ -25,8 +25,7 @@ html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; bac
 #carousel { width:90%; position:relative; overflow:hidden; background:#000; display:flex; justify-content:center; align-items:center; }
 .carousel-item { position:absolute; width:100%; height:100%; display:flex; justify-content:center; align-items:center; opacity:0; transition:opacity 1s ease; }
 .carousel-item.active { opacity:1; z-index:1; }
-.carousel-item img, .carousel-item video, .carousel-item iframe { max-width:100%; max-height:100%; object-fit:contain; }
-.carousel-item iframe { border:none; width:100%; height:100%; }
+.carousel-item img, .carousel-item video, .carousel-item canvas { max-width:100%; max-height:100%; object-fit:contain; display:block; }
 </style>
 </head>
 <body>
@@ -42,6 +41,9 @@ html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; bac
   </div>
   <div id="carousel"></div>
 </div>
+
+<!-- pdf.js -->
+<script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
 
 <script>
 const PROXY_URL = 'https://tcj-proxy.onrender.com';
@@ -93,9 +95,34 @@ function displayCarousel() {
   items.forEach((item,index)=>{
     const div = document.createElement('div');
     div.className = 'carousel-item' + (index===0 ? ' active' : '');
-    if(item.type==='image') { const img = document.createElement('img'); img.src = item.url; div.appendChild(img); }
-    else if(item.type==='video') { const vid = document.createElement('video'); vid.src = item.url; vid.autoplay=true; vid.loop=true; vid.muted=true; div.appendChild(vid); }
-    else if(item.type==='pdf') { const iframe = document.createElement('iframe'); iframe.src = item.url; div.appendChild(iframe); }
+
+    if(item.type==='image') {
+      const img = document.createElement('img');
+      img.src = item.url;
+      div.appendChild(img);
+
+    } else if(item.type==='video') {
+      const vid = document.createElement('video');
+      vid.src = item.url;
+      vid.autoplay=true;
+      vid.loop=true;
+      vid.muted=true;
+      div.appendChild(vid);
+
+    } else if(item.type==='pdf') {
+      const canvas = document.createElement('canvas');
+      div.appendChild(canvas);
+      // Render PDF page 1
+      pdfjsLib.getDocument(item.url).promise.then(pdf => {
+        pdf.getPage(1).then(page => {
+          const viewport = page.getViewport({ scale:1.5 });
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport });
+        });
+      });
+    }
+
     carousel.appendChild(div);
   });
 }
