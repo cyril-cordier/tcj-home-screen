@@ -7,7 +7,18 @@
 html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; background:#111; color:#fff; }
 #container { display:flex; height:100%; }
 #sidebar { width:10%; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:10px; box-sizing:border-box; background:#222; }
-#logo img { width:80%; max-width:100px; height:auto; margin-bottom:20px; }
+#logo img { 
+  width:80%; 
+  max-width:100px; 
+  height:auto; 
+  margin-bottom:20px; 
+  animation: pulse 3s infinite ease-in-out;
+}
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
 #datetime { text-align:center; margin-top:auto; margin-bottom:10px; }
 #date { font-size:1.2em; margin-bottom:5px; }
 #clock { font-size:2em; }
@@ -22,7 +33,7 @@ html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; bac
 <div id="container">
   <div id="sidebar">
     <div id="logo">
-      <img src="logo-TCJ.jpg" alt="Logo TC Jocassien">
+      <img src="logo.png" alt="Logo TC Jocassien">
     </div>
     <div id="datetime">
       <div id="date"></div>
@@ -33,7 +44,6 @@ html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; bac
 </div>
 
 <script>
-// URL de ton serveur Render
 const PROXY_URL = 'https://tcj-proxy.onrender.com';
 const carousel = document.getElementById('carousel');
 let items=[], currentIndex=0, timer;
@@ -55,7 +65,12 @@ async function fetchFiles() {
   try {
     const res = await fetch(`${PROXY_URL}/files`);
     const data = await res.json();
-    items = data.map(file => {
+    if(!data.files || !Array.isArray(data.files)) {
+      console.error('Aucun fichier trouvé !', data);
+      return;
+    }
+
+    items = data.files.map(file => {
       if(file.mimeType.startsWith('image/')) {
         return { type:'image', url:`${PROXY_URL}/file/${file.id}`, duration:8000 };
       } else if(file.mimeType.startsWith('video/')) {
@@ -102,7 +117,7 @@ function startCarousel() { if(items.length===0) return; timer=setTimeout(nextIte
 setInterval(() => {
   console.log('Rafraîchissement du contenu via proxy...');
   fetchFiles();
-}, 1200000); // 20 minutes
+}, 1200000);
 
 // Premier chargement
 fetchFiles();
