@@ -6,32 +6,12 @@
 <style>
 html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; background:#111; color:#fff; }
 #container { display:flex; height:100%; }
-#sidebar { 
-  width:10%; 
-  display:flex; 
-  flex-direction:column; 
-  justify-content:center; /* centre verticalement */
-  align-items:center;    /* centre horizontalement */
-  padding:10px; 
-  box-sizing:border-box; 
-  background:#222; 
-}
-#logo img { 
-  width:80%; 
-  max-width:100px; 
-  height:auto; 
-  display:block; 
-  margin-bottom:20px; /* espace vers la date/horloge */
-}
+#sidebar { width:10%; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:10px; box-sizing:border-box; background:#222; }
+#logo img { width:80%; max-width:100px; height:auto; margin-bottom:20px; }
 #datetime { text-align:center; margin-top:auto; margin-bottom:10px; }
 #date { font-size:1.2em; margin-bottom:5px; }
 #clock { font-size:2em; }
 #carousel { width:90%; position:relative; overflow:hidden; background:#000; display:flex; justify-content:center; align-items:center; }
-#logo-overlay { 
-  position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); 
-  z-index:10; pointer-events:none; 
-}
-#logo-overlay img { width:80px; max-width:10%; height:auto; }
 .carousel-item { position:absolute; width:100%; height:100%; display:flex; justify-content:center; align-items:center; opacity:0; transition:opacity 1s ease; }
 .carousel-item.active { opacity:1; z-index:1; }
 .carousel-item img, .carousel-item video, .carousel-item iframe { max-width:100%; max-height:100%; object-fit:contain; }
@@ -41,21 +21,20 @@ html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; bac
 <body>
 <div id="container">
   <div id="sidebar">
+    <div id="logo">
+      <img src="logo-TCJ.jpg" alt="Logo TC Jocassien">
+    </div>
     <div id="datetime">
       <div id="date"></div>
       <div id="clock"></div>
     </div>
   </div>
-  <div id="carousel">
-    <div id="logo-overlay">
-      <img src="logo-TCJ.jpg" alt="Logo TC Jocassien">
-    </div>
-  </div>
+  <div id="carousel"></div>
 </div>
 
-<script src="config.js"></script>
 <script>
-const { API_KEY, FOLDER_ID } = window.CONFIG;
+// URL de ton serveur Render
+const PROXY_URL = 'https://tcj-proxy.onrender.com';
 const carousel = document.getElementById('carousel');
 let items=[], currentIndex=0, timer;
 
@@ -71,28 +50,31 @@ function updateDateTime() {
 setInterval(updateDateTime,1000);
 updateDateTime();
 
-// Récupération fichiers Google Drive via API
-async function fetchDriveFiles() {
-  const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents&key=${API_KEY}&fields=files(id,name,mimeType,webContentLink)`;
-  const res = await fetch(url);
-  const data = await res.json();
-  items = data.files.map(file => {
-    if(file.mimeType.startsWith('image/')) {
-      return { type:'image', url:file.webContentLink, duration:8000 };
-    } else if(file.mimeType.startsWith('video/')) {
-      return { type:'video', url:file.webContentLink, duration:15000 };
-    } else if(file.mimeType==='application/pdf') {
-      return { type:'pdf', url:`https://drive.google.com/file/d/${file.id}/preview`, duration:20000 };
-    } else return null;
-  }).filter(Boolean);
+// Récupération fichiers via le proxy
+async function fetchFiles() {
+  try {
+    const res = await fetch(`${PROXY_URL}/files`);
+    const data = await res.json();
+    items = data.map(file => {
+      if(file.mimeType.startsWith('image/')) {
+        return { type:'image', url:`${PROXY_URL}/file/${file.id}`, duration:8000 };
+      } else if(file.mimeType.startsWith('video/')) {
+        return { type:'video', url:`${PROXY_URL}/file/${file.id}`, duration:15000 };
+      } else if(file.mimeType==='application/pdf') {
+        return { type:'pdf', url:`${PROXY_URL}/file/${file.id}`, duration:20000 };
+      } else return null;
+    }).filter(Boolean);
 
-  displayCarousel();
-  startCarousel();
+    displayCarousel();
+    startCarousel();
+  } catch(e){
+    console.error('Erreur récupération fichiers:', e);
+  }
 }
 
 // Création éléments carrousel
 function displayCarousel() {
-  carousel.querySelectorAll('.carousel-item')?.forEach(el => el.remove());
+  carousel.innerHTML='';
   items.forEach((item,index)=>{
     const div = document.createElement('div');
     div.className = 'carousel-item' + (index===0 ? ' active' : '');
@@ -118,12 +100,12 @@ function startCarousel() { if(items.length===0) return; timer=setTimeout(nextIte
 
 // Rafraîchissement automatique toutes les 20 minutes
 setInterval(() => {
-  console.log('Rafraîchissement du contenu Drive...');
-  fetchDriveFiles();
+  console.log('Rafraîchissement du contenu via proxy...');
+  fetchFiles();
 }, 1200000); // 20 minutes
 
 // Premier chargement
-fetchDriveFiles();
+fetchFiles();
 </script>
 </body>
 </html>
