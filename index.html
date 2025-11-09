@@ -6,14 +6,15 @@
 <style>
 html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; background:#111; color:#fff; }
 #container { display:flex; height:100%; }
-#sidebar { width:20%; display:flex; flex-direction:column; justify-content:space-between; padding:20px; box-sizing:border-box; background:#222; }
-#logo img { width:100%; max-width:150px; height:auto; }
-#clock { font-size:2em; text-align:left; }
-#carousel { width:80%; position:relative; overflow:hidden; background:#000; display:flex; justify-content:center; align-items:center; }
+#sidebar { width:15%; display:flex; flex-direction:column; justify-content:space-between; padding:10px; box-sizing:border-box; background:#222; }
+#logo img { width:100%; max-width:120px; height:auto; margin-bottom:20px; }
+#datetime { text-align:left; margin-top:auto; }
+#date { font-size:1.2em; margin-bottom:5px; }
+#clock { font-size:2em; }
+#carousel { width:85%; position:relative; overflow:hidden; background:#000; display:flex; justify-content:center; align-items:center; }
 .carousel-item { position:absolute; width:100%; height:100%; display:flex; justify-content:center; align-items:center; opacity:0; transition:opacity 1s ease; }
 .carousel-item.active { opacity:1; z-index:1; }
-.carousel-item img, .carousel-item video, .carousel-item iframe { max-width:100%; max-height:100%; }
-.carousel-item video { object-fit:contain; }
+.carousel-item img, .carousel-item video, .carousel-item iframe { max-width:100%; max-height:100%; object-fit:contain; }
 .carousel-item iframe { border:none; width:100%; height:100%; }
 </style>
 </head>
@@ -23,7 +24,10 @@ html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; bac
     <div id="logo">
       <img src="https://drive.google.com/uc?export=view&id=1h2-CLZi9wjkDtgrbYbCkPRAsHp6eiuL4" alt="Logo TC Jocassien">
     </div>
-    <div id="clock"></div>
+    <div id="datetime">
+      <div id="date"></div>
+      <div id="clock"></div>
+    </div>
   </div>
   <div id="carousel"></div>
 </div>
@@ -34,15 +38,18 @@ const { API_KEY, FOLDER_ID } = window.CONFIG;
 const carousel = document.getElementById('carousel');
 let items=[], currentIndex=0, timer;
 
-// Horloge
-function updateClock() {
-  const now=new Date();
-  const h=String(now.getHours()).padStart(2,'0');
-  const m=String(now.getMinutes()).padStart(2,'0');
-  const s=String(now.getSeconds()).padStart(2,'0');
-  document.getElementById('clock').textContent=`${h}:${m}:${s}`;
+// Date et horloge dynamique
+function updateDateTime() {
+  const now = new Date();
+  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  document.getElementById('date').textContent = now.toLocaleDateString('fr-FR', options);
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${h}:${m}:${s}`;
 }
-setInterval(updateClock,1000); updateClock();
+setInterval(updateDateTime,1000);
+updateDateTime();
 
 // Récupération fichiers Google Drive
 async function fetchDriveFiles() {
@@ -51,12 +58,13 @@ async function fetchDriveFiles() {
   const data=await res.json();
   items=data.files.map(file=>{
     let url='', duration=8000;
-    if(file.mimeType.startsWith('image/')){url=`https://drive.google.com/uc?export=view&id=${file.id}`; duration=8000; return {type:'image',url,duration};}
-    else if(file.mimeType.startsWith('video/')){url=`https://drive.google.com/uc?export=download&id=${file.id}`; duration=15000; return {type:'video',url,duration};}
-    else if(file.mimeType==='application/pdf'){url=`https://drive.google.com/file/d/${file.id}/preview`; duration=20000; return {type:'pdf',url,duration};}
+    if(file.mimeType.startsWith('image/')) { url=`https://drive.google.com/uc?export=view&id=${file.id}`; duration=8000; return {type:'image', url, duration}; }
+    else if(file.mimeType.startsWith('video/')) { url=`https://drive.google.com/uc?export=download&id=${file.id}`; duration=15000; return {type:'video', url, duration}; }
+    else if(file.mimeType==='application/pdf') { url=`https://drive.google.com/file/d/${file.id}/preview`; duration=20000; return {type:'pdf', url, duration}; }
     else return null;
   }).filter(Boolean);
-  displayCarousel(); startCarousel();
+  displayCarousel();
+  startCarousel();
 }
 
 // Création éléments carrousel
@@ -65,9 +73,9 @@ function displayCarousel() {
   items.forEach((item,index)=>{
     const div=document.createElement('div');
     div.className='carousel-item'+(index===0?' active':'');
-    if(item.type==='image'){ const img=document.createElement('img'); img.src=item.url; div.appendChild(img);}
-    else if(item.type==='video'){ const vid=document.createElement('video'); vid.src=item.url; vid.autoplay=true; vid.loop=true; vid.muted=true; div.appendChild(vid);}
-    else if(item.type==='pdf'){ const iframe=document.createElement('iframe'); iframe.src=item.url; div.appendChild(iframe);}
+    if(item.type==='image') { const img=document.createElement('img'); img.src=item.url; div.appendChild(img); }
+    else if(item.type==='video') { const vid=document.createElement('video'); vid.src=item.url; vid.autoplay=true; vid.loop=true; vid.muted=true; div.appendChild(vid); }
+    else if(item.type==='pdf') { const iframe=document.createElement('iframe'); iframe.src=item.url; div.appendChild(iframe); }
     carousel.appendChild(div);
   });
 }
@@ -82,7 +90,7 @@ function nextItem() {
   timer=setTimeout(nextItem, items[currentIndex].duration);
 }
 
-function startCarousel(){ if(items.length===0)return; timer=setTimeout(nextItem, items[0].duration); }
+function startCarousel() { if(items.length===0) return; timer=setTimeout(nextItem, items[0].duration); }
 
 fetchDriveFiles();
 </script>
