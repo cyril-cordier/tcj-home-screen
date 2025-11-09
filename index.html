@@ -1,180 +1,262 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Affichage Dynamique TC Jocassien</title>
-<style>
-html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; background:#111; color:#fff; }
-#container { display:flex; height:100%; }
-#sidebar { width:10%; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:10px; box-sizing:border-box; background:#222; }
-#logo img { 
-  width: 150%;        /* pleine largeur de la sidebar */
-  height: auto;       
-  margin-bottom: 20px;
-  animation: pulse 3s infinite ease-in-out;
-  border: none;
-  background: none;
-  border-radius: 50%; /* si image ronde */
-  box-shadow: none;
-}
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-#datetime { text-align:center; margin-top:auto; margin-bottom:10px; }
-#date { font-size:1.2em; margin-bottom:5px; }
-#clock { font-size:2em; }
-#carousel { width:90%; position:relative; overflow:hidden; background:#000; display:flex; justify-content:center; align-items:center; }
-.carousel-item { position:absolute; width:100%; height:100%; display:flex; justify-content:center; align-items:center; opacity:0; transition:opacity 1s ease; }
-.carousel-item.active { opacity:1; z-index:1; }
-.carousel-item img, .carousel-item video, .carousel-item canvas { max-width:100%; max-height:100%; object-fit:contain; display:block; }
-#empty-logo { position:absolute; top:0; left:10%; width:90%; height:100%; display:flex; justify-content:center; align-items:center; background:#000; z-index:1; }
-#empty-logo img { max-width:80%; max-height:80%; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Affichage Dynamique TC Jocassien</title>
+  <style>
+    * {margin:0;padding:0;box-sizing:border-box;}
+    body {
+      background:black;
+      color:white;
+      font-family:Arial, sans-serif;
+      overflow:hidden;
+      display:flex;
+      height:100vh;
+      width:100vw;
+    }
+
+    /* ---- BARRE GAUCHE ---- */
+    .sidebar {
+      width:10%;
+      background:rgba(0,0,0,0.8);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:space-between;
+      padding:20px 10px;
+    }
+
+    #logo img {
+      width:100%;
+      height:auto;
+      border:none;
+      background:none;
+      border-radius:50%;
+      box-shadow:none;
+      animation:pulse 3s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0% { transform:scale(1); opacity:1; }
+      50% { transform:scale(1.05); opacity:0.9; }
+      100% { transform:scale(1); opacity:1; }
+    }
+
+    .date, .clock {
+      text-align:center;
+      font-size:1.1em;
+    }
+
+    /* ---- ZONE PRINCIPALE ---- */
+    .main {
+      width:90%;
+      position:relative;
+      overflow:hidden;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      background:black;
+    }
+
+    .carousel-item {
+      position:absolute;
+      width:100%;
+      height:100%;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      opacity:0;
+      transition:opacity 1.5s ease-in-out;
+    }
+
+    .carousel-item.active {
+      opacity:1;
+      z-index:1;
+    }
+
+    img, video, canvas {
+      max-width:100%;
+      max-height:100%;
+      object-fit:contain;
+    }
+
+    #fallback-logo {
+      width:auto;
+      height:80vh;
+      max-width:90%;
+      object-fit:contain;
+      display:block;
+      margin:auto;
+      border:none;
+      background:none;
+      box-shadow:none;
+    }
+  </style>
 </head>
 <body>
-<div id="container">
-  <div id="sidebar">
-    <div id="logo">
-      <img src="logo-TCJ.png" alt="Logo TC Jocassien">
-    </div>
-    <div id="datetime">
-      <div id="date"></div>
-      <div id="clock"></div>
+  <div class="sidebar">
+    <div id="logo"><img src="logo-TCJ.jpg" alt="Logo TC Jocassien"></div>
+    <div>
+      <div class="date" id="date"></div>
+      <div class="clock" id="clock"></div>
     </div>
   </div>
-  <div id="carousel"></div>
-  <div id="empty-logo" style="display:none;">
-    <img src="logo-TCJ.png" alt="Logo TC Jocassien" width="200%" height="200%">
+
+  <div class="main">
+    <div id="carousel"></div>
   </div>
-</div>
 
-<!-- pdf.js CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.177/pdf.min.js"></script>
-<script>
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.177/pdf.worker.min.js';
-</script>
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
-<script>
-const PROXY_URL = 'https://tcj-proxy.onrender.com';
-const carousel = document.getElementById('carousel');
-const emptyLogoDiv = document.getElementById('empty-logo');
-let items=[], currentIndex=0, timer;
+  <script>
+    const PROXY_URL = "https://tcj-proxy.onrender.com";
+    let currentIndex = 0;
+    let timer;
+    let items = [];
 
-// Date et horloge
-function updateDateTime() {
-  const now = new Date();
-  document.getElementById('date').textContent = now.toLocaleDateString('fr-FR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-  const h = String(now.getHours()).padStart(2,'0');
-  const m = String(now.getMinutes()).padStart(2,'0');
-  const s = String(now.getSeconds()).padStart(2,'0');
-  document.getElementById('clock').textContent = `${h}:${m}:${s}`;
-}
-setInterval(updateDateTime,1000);
-updateDateTime();
-
-// Récupération fichiers via proxy
-async function fetchFiles() {
-  try {
-    const res = await fetch(`${PROXY_URL}/files`);
-    const data = await res.json();
-    if(!data.files || !Array.isArray(data.files) || data.files.length===0) {
-      console.log('Aucun fichier trouvé, affichage logo plein écran');
-      items = [];
-      carousel.innerHTML = '';
-      emptyLogoDiv.style.display = 'flex';
-      return;
+    /* ---- HORLOGE ---- */
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("clock").textContent = now.toLocaleTimeString("fr-FR", {hour:'2-digit',minute:'2-digit'});
+      document.getElementById("date").textContent = now.toLocaleDateString("fr-FR", {weekday:'long', day:'2-digit', month:'long'});
     }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-    emptyLogoDiv.style.display = 'none';
+    /* ---- CHARGEMENT DES FICHIERS ---- */
+    async function fetchFiles() {
+      try {
+        const res = await fetch(`${PROXY_URL}/files`);
+        const data = await res.json();
+        if (!data.files || data.files.length === 0) {
+          document.getElementById("carousel").innerHTML =
+            '<img id="fallback-logo" src="logo-TCJ.jpg" alt="Logo TC Jocassien">';
+          return;
+        }
 
-    items = data.files.map(file => {
-      if(file.mimeType.startsWith('image/')) {
-        return { type:'image', url:`${PROXY_URL}/file/${file.id}`, duration:8000 };
-      } else if(file.mimeType.startsWith('video/')) {
-        return { type:'video', url:`${PROXY_URL}/file/${file.id}`, duration:15000 };
-      } else if(file.mimeType==='application/pdf') {
-        return { type:'pdf', url:`${PROXY_URL}/file/${file.id}`, duration:20000 };
-      } else return null;
-    }).filter(Boolean);
-
-    if(items.length===0) {
-      console.log('Aucun fichier compatible, affichage logo plein écran');
-      carousel.innerHTML = '';
-      emptyLogoDiv.style.display = 'flex';
-      return;
-    }
-
-    displayCarousel();
-    startCarousel();
-
-  } catch(e){
-    console.error('Erreur récupération fichiers:', e);
-    items = [];
-    carousel.innerHTML = '';
-    emptyLogoDiv.style.display = 'flex';
-  }
-}
-
-// Création éléments carrousel
-function displayCarousel() {
-  carousel.innerHTML='';
-  items.forEach((item,index)=>{
-    const div = document.createElement('div');
-    div.className = 'carousel-item' + (index===0 ? ' active' : '');
-
-    if(item.type==='image') {
-      const img = document.createElement('img');
-      img.src = item.url;
-      div.appendChild(img);
-
-    } else if(item.type==='video') {
-      const vid = document.createElement('video');
-      vid.src = item.url;
-      vid.autoplay=true;
-      vid.loop=true;
-      vid.muted=true;
-      div.appendChild(vid);
-
-    } else if(item.type==='pdf') {
-      const canvas = document.createElement('canvas');
-      div.appendChild(canvas);
-      pdfjsLib.getDocument(item.url).promise.then(pdf => {
-        pdf.getPage(1).then(page => {
-          const viewport = page.getViewport({ scale:1.5 });
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport });
+        items = data.files.map(file => {
+          let type = "image";
+          let duration = 8000;
+          if (file.mimeType.includes("video")) {
+            type = "video"; duration = 999999; // handled by video end
+          } else if (file.mimeType.includes("pdf")) {
+            type = "pdf"; duration = 20000;
+          }
+          return {...file, type, duration};
         });
-      });
+
+        displayCarousel();
+      } catch (err) {
+        console.error("Erreur récupération fichiers:", err);
+        document.getElementById("carousel").innerHTML =
+          '<img id="fallback-logo" src="logo-TCJ.jpg" alt="Logo TC Jocassien">';
+      }
     }
 
-    carousel.appendChild(div);
-  });
-}
+    /* ---- AFFICHAGE DU CARROUSEL ---- */
+    async function displayCarousel() {
+      const carousel = document.getElementById("carousel");
+      carousel.innerHTML = "";
 
-// Passage au suivant
-function nextItem() {
-  const elems = document.querySelectorAll('.carousel-item');
-  if(elems.length===0) return;
-  elems[currentIndex].classList.remove('active');
-  currentIndex = (currentIndex+1)%elems.length;
-  elems[currentIndex].classList.add('active');
-  clearTimeout(timer);
-  timer = setTimeout(nextItem, items[currentIndex].duration);
-}
+      for (const item of items) {
+        const div = document.createElement("div");
+        div.className = "carousel-item";
 
-function startCarousel() { if(items.length===0) return; timer=setTimeout(nextItem, items[0].duration); }
+        if (item.type === "image") {
+          const img = document.createElement("img");
+          img.src = item.webContentLink;
+          div.appendChild(img);
+        } else if (item.type === "video") {
+          const vid = document.createElement("video");
+          vid.src = item.webContentLink;
+          vid.autoplay = true;
+          vid.loop = false;
+          vid.muted = true;
+          vid.playsInline = true;
+          div.appendChild(vid);
+        } else if (item.type === "pdf") {
+          const canvas = document.createElement("canvas");
+          div.appendChild(canvas);
 
-// Rafraîchissement automatique toutes les 20 minutes
-setInterval(() => {
-  console.log('Rafraîchissement du contenu via proxy...');
-  fetchFiles();
-}, 1200000);
+          try {
+            const pdf = await pdfjsLib.getDocument(item.webContentLink).promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 1.8 });
+            const context = canvas.getContext("2d");
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            await page.render({canvasContext: context, viewport}).promise;
+          } catch (e) {
+            console.error("Erreur chargement PDF", item.name, e);
+          }
+        }
 
-// Premier chargement
-fetchFiles();
-</script>
+        carousel.appendChild(div);
+      }
+
+      if (items.length > 0) {
+        document.querySelector(".carousel-item").classList.add("active");
+        startCarousel();
+      }
+    }
+
+    function nextItem() {
+      const elems = document.querySelectorAll(".carousel-item");
+      if (elems.length === 0) return;
+
+      elems[currentIndex].classList.remove("active");
+      currentIndex = (currentIndex + 1) % elems.length;
+      elems[currentIndex].classList.add("active");
+
+      const currentItem = items[currentIndex];
+      clearTimeout(timer);
+
+      if (currentItem.type === "video") {
+        const videoEl = elems[currentIndex].querySelector("video");
+        if (videoEl) {
+          const onEnded = () => {
+            videoEl.removeEventListener("ended", onEnded);
+            nextItem();
+          };
+          videoEl.addEventListener("ended", onEnded);
+          timer = setTimeout(() => {
+            videoEl.removeEventListener("ended", onEnded);
+            nextItem();
+          }, 10 * 60 * 1000);
+        }
+      } else {
+        timer = setTimeout(nextItem, currentItem.duration);
+      }
+    }
+
+    function startCarousel() {
+      if (items.length === 0) return;
+      clearTimeout(timer);
+
+      const currentItem = items[0];
+      if (currentItem.type === "video") {
+        const videoEl = document.querySelector(".carousel-item video");
+        if (videoEl) {
+          const onEnded = () => {
+            videoEl.removeEventListener("ended", onEnded);
+            nextItem();
+          };
+          videoEl.addEventListener("ended", onEnded);
+          timer = setTimeout(() => {
+            videoEl.removeEventListener("ended", onEnded);
+            nextItem();
+          }, 10 * 60 * 1000);
+        }
+      } else {
+        timer = setTimeout(nextItem, currentItem.duration);
+      }
+    }
+
+    fetchFiles();
+    // Actualisation automatique toutes les 20 minutes
+    setInterval(fetchFiles, 20 * 60 * 1000);
+  </script>
 </body>
 </html>
