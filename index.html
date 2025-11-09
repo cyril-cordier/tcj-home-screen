@@ -6,12 +6,16 @@
 <style>
 html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; background:#111; color:#fff; }
 #container { display:flex; height:100%; }
-#sidebar { width:10%; display:flex; flex-direction:column; justify-content:space-between; padding:10px; box-sizing:border-box; background:#222; }
-#logo img { width:100%; max-width:120px; height:auto; margin-bottom:20px; }
-#datetime { text-align:left; margin-top:auto; }
+#sidebar { width:10%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; padding:10px; box-sizing:border-box; background:#222; }
+#datetime { text-align:center; margin-bottom:10px; }
 #date { font-size:1.2em; margin-bottom:5px; }
 #clock { font-size:2em; }
-#carousel { width:85%; position:relative; overflow:hidden; background:#000; display:flex; justify-content:center; align-items:center; }
+#carousel { width:90%; position:relative; overflow:hidden; background:#000; display:flex; justify-content:center; align-items:center; }
+#logo-overlay { 
+  position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); 
+  z-index:10; pointer-events:none; 
+}
+#logo-overlay img { width:80px; max-width:10%; height:auto; }
 .carousel-item { position:absolute; width:100%; height:100%; display:flex; justify-content:center; align-items:center; opacity:0; transition:opacity 1s ease; }
 .carousel-item.active { opacity:1; z-index:1; }
 .carousel-item img, .carousel-item video, .carousel-item iframe { max-width:100%; max-height:100%; object-fit:contain; }
@@ -21,15 +25,16 @@ html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; bac
 <body>
 <div id="container">
   <div id="sidebar">
-    <div id="logo">
-      <img src="logo-TCJ.jpg" alt="Logo TC Jocassien">
-    </div>
     <div id="datetime">
       <div id="date"></div>
       <div id="clock"></div>
     </div>
   </div>
-  <div id="carousel"></div>
+  <div id="carousel">
+    <div id="logo-overlay">
+      <img src="logo-TCJ.jpg" alt="Logo TC Jocassien">
+    </div>
+  </div>
 </div>
 
 <script src="config.js"></script>
@@ -38,11 +43,10 @@ const { API_KEY, FOLDER_ID } = window.CONFIG;
 const carousel = document.getElementById('carousel');
 let items=[], currentIndex=0, timer;
 
-// Date et horloge dynamique
+// Date et horloge
 function updateDateTime() {
   const now = new Date();
-  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-  document.getElementById('date').textContent = now.toLocaleDateString('fr-FR', options);
+  document.getElementById('date').textContent = now.toLocaleDateString('fr-FR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
   const h = String(now.getHours()).padStart(2,'0');
   const m = String(now.getMinutes()).padStart(2,'0');
   const s = String(now.getSeconds()).padStart(2,'0');
@@ -51,47 +55,58 @@ function updateDateTime() {
 setInterval(updateDateTime,1000);
 updateDateTime();
 
-// Récupération fichiers Google Drive
+// Récupération fichiers Google Drive via API
 async function fetchDriveFiles() {
-  const url=`https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents&key=${API_KEY}&fields=files(id,name,mimeType)`;
-  const res=await fetch(url);
-  const data=await res.json();
-  items=data.files.map(file=>{
-    let url='', duration=8000;
-    if(file.mimeType.startsWith('image/')) { url=`https://drive.google.com/uc?export=view&id=${file.id}`; duration=8000; return {type:'image', url, duration}; }
-    else if(file.mimeType.startsWith('video/')) { url=`https://drive.google.com/uc?export=download&id=${file.id}`; duration=15000; return {type:'video', url, duration}; }
-    else if(file.mimeType==='application/pdf') { url=`https://drive.google.com/file/d/${file.id}/preview`; duration=20000; return {type:'pdf', url, duration}; }
-    else return null;
+  const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents&key=${API_KEY}&fields=files(id,name,mimeType,webContentLink)`;
+  const res = await fetch(url);
+  const data = await res.json();
+  items = data.files.map(file => {
+    if(file.mimeType.startsWith('image/')) {
+      return { type:'image', url:file.webContentLink, duration:8000 };
+    } else if(file.mimeType.startsWith('video/')) {
+      return { type:'video', url:file.webContentLink, duration:15000 };
+    } else if(file.mimeType==='application/pdf') {
+      return { type:'pdf', url:`https://drive.google.com/file/d/${file.id}/preview`, duration:20000 };
+    } else return null;
   }).filter(Boolean);
+
   displayCarousel();
   startCarousel();
 }
 
 // Création éléments carrousel
 function displayCarousel() {
-  carousel.innerHTML='';
+  carousel.querySelectorAll('.carousel-item')?.forEach(el => el.remove());
   items.forEach((item,index)=>{
-    const div=document.createElement('div');
-    div.className='carousel-item'+(index===0?' active':'');
-    if(item.type==='image') { const img=document.createElement('img'); img.src=item.url; div.appendChild(img); }
-    else if(item.type==='video') { const vid=document.createElement('video'); vid.src=item.url; vid.autoplay=true; vid.loop=true; vid.muted=true; div.appendChild(vid); }
-    else if(item.type==='pdf') { const iframe=document.createElement('iframe'); iframe.src=item.url; div.appendChild(iframe); }
+    const div = document.createElement('div');
+    div.className = 'carousel-item' + (index===0 ? ' active' : '');
+    if(item.type==='image') { const img = document.createElement('img'); img.src = item.url; div.appendChild(img); }
+    else if(item.type==='video') { const vid = document.createElement('video'); vid.src = item.url; vid.autoplay=true; vid.loop=true; vid.muted=true; div.appendChild(vid); }
+    else if(item.type==='pdf') { const iframe = document.createElement('iframe'); iframe.src = item.url; div.appendChild(iframe); }
     carousel.appendChild(div);
   });
 }
 
-// Passage au suivant avec transition et durée variable
+// Passage au suivant
 function nextItem() {
-  const elems=document.querySelectorAll('.carousel-item');
+  const elems = document.querySelectorAll('.carousel-item');
+  if(elems.length===0) return;
   elems[currentIndex].classList.remove('active');
-  currentIndex=(currentIndex+1)%elems.length;
+  currentIndex = (currentIndex+1)%elems.length;
   elems[currentIndex].classList.add('active');
   clearTimeout(timer);
-  timer=setTimeout(nextItem, items[currentIndex].duration);
+  timer = setTimeout(nextItem, items[currentIndex].duration);
 }
 
 function startCarousel() { if(items.length===0) return; timer=setTimeout(nextItem, items[0].duration); }
 
+// Rafraîchissement automatique toutes les 20 minutes
+setInterval(() => {
+  console.log('Rafraîchissement du contenu Drive...');
+  fetchDriveFiles();
+}, 1200000); // 20 minutes
+
+// Premier chargement
 fetchDriveFiles();
 </script>
 </body>
