@@ -9,44 +9,52 @@
       margin: 0;
       padding: 0;
       height: 100%;
-      background-color: #000;
       color: #fff;
       font-family: Arial, sans-serif;
       overflow: hidden;
     }
-
     .container {
       display: flex;
       height: 100vh;
       width: 100vw;
     }
-
     /* --- SIDEBAR --- */
     .sidebar {
       width: 10%;
-      background-color: #111;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       align-items: center;
       padding: 20px 10px;
       box-sizing: border-box;
+      background-image: url('TCJ-bg-left.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      position: relative; /* Pour superposer le contenu */
     }
-
+    .sidebar-content {
+      width: 100%;
+      text-align: center;
+      z-index: 1; /* Assure que le contenu est au-dessus du fond */
+    }
     .sidebar img {
       width: 100%;
       height: auto;
       object-fit: contain;
       border: none;
+      z-index: 1;
     }
-
     .date-time {
       text-align: center;
       font-size: 1rem;
       color: #fff;
       line-height: 1.5em;
+      z-index: 1;
+      background-color: rgba(0, 0, 0, 0.5); /* Fond semi-transparent pour améliorer la lisibilité (optionnel) */
+      padding: 5px;
+      border-radius: 5px;
     }
-
     /* --- MAIN AREA --- */
     .main {
       flex-grow: 1;
@@ -55,8 +63,11 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      background-image: url('TCJ-bg.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
     }
-
     .content {
       position: absolute;
       width: 100%;
@@ -67,17 +78,14 @@
       opacity: 0;
       transition: opacity 1s ease-in-out;
     }
-
     .content.active {
       opacity: 1;
     }
-
     img, video, iframe, canvas {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
     }
-
     .logo-fallback {
       width: 50%;
       height: auto;
@@ -87,24 +95,25 @@
 <body>
   <div class="container">
     <div class="sidebar">
-      <img src="logo-TCJ.png" alt="Logo TC Jocassien">
-      <div class="date-time">
-        <div id="date"></div>
-        <div id="time"></div>
+      <div class="sidebar-content">
+        <img src="logo-TCJ.png" alt="Logo TC Jocassien">
+      </div>
+      <div class="sidebar-content">
+        <div class="date-time">
+          <div id="date"></div>
+          <div id="time"></div>
+        </div>
       </div>
     </div>
-
     <div class="main" id="carousel">
       <!-- Contenu dynamique ici -->
     </div>
   </div>
-
   <script>
     const API_URL = "https://tcj-proxy.onrender.com/files";
     const carousel = document.getElementById("carousel");
     let files = [];
     let currentIndex = 0;
-
     async function fetchFiles() {
       try {
         const res = await fetch(API_URL);
@@ -120,7 +129,6 @@
         showFallbackLogo();
       }
     }
-
     function showFallbackLogo() {
       carousel.innerHTML = `
         <div class="content active">
@@ -128,16 +136,13 @@
         </div>
       `;
     }
-
     function displayCarousel() {
       if (files.length === 0) return showFallbackLogo();
       carousel.innerHTML = "";
-
       files.forEach((file, index) => {
         const div = document.createElement("div");
         div.classList.add("content");
         if (index === 0) div.classList.add("active");
-
         if (file.mimeType.startsWith("image/")) {
           div.innerHTML = `<img src="${file.webContentLink}" alt="${file.name}">`;
         } else if (file.mimeType.startsWith("video/")) {
@@ -145,22 +150,17 @@
         } else if (file.mimeType === "application/pdf") {
           div.innerHTML = `<iframe src="${file.webContentLink}" frameborder="0" style="width:100%;height:100%;"></iframe>`;
         }
-
         carousel.appendChild(div);
       });
-
       startCarousel();
     }
-
     function startCarousel() {
       const slides = document.querySelectorAll(".content");
       let delay = 10000;
-
       function nextSlide() {
         slides[currentIndex].classList.remove("active");
         currentIndex = (currentIndex + 1) % slides.length;
         slides[currentIndex].classList.add("active");
-
         const currentFile = files[currentIndex];
         if (currentFile.mimeType.startsWith("video/")) {
           const video = slides[currentIndex].querySelector("video");
@@ -170,13 +170,10 @@
         } else {
           delay = 10000;
         }
-
         setTimeout(nextSlide, delay);
       }
-
       setTimeout(nextSlide, delay);
     }
-
     function updateDateTime() {
       const now = new Date();
       const date = now.toLocaleDateString("fr-FR", {
@@ -189,10 +186,8 @@
       document.getElementById("date").textContent = date;
       document.getElementById("time").textContent = time;
     }
-
     setInterval(updateDateTime, 1000);
     updateDateTime();
-
     fetchFiles();
     setInterval(fetchFiles, 10 * 60 * 1000); // 10 min
   </script>
