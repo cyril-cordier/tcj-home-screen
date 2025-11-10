@@ -5,258 +5,196 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Affichage Dynamique TC Jocassien</title>
   <style>
-    * {margin:0;padding:0;box-sizing:border-box;}
-    body {
-      background:black;
-      color:white;
-      font-family:Arial, sans-serif;
-      overflow:hidden;
-      display:flex;
-      height:100vh;
-      width:100vw;
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
     }
 
-    /* ---- BARRE GAUCHE ---- */
+    .container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* --- SIDEBAR --- */
     .sidebar {
-      width:10%;
-      background:rgba(0,0,0,0.8);
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:space-between;
-      padding:20px 10px;
+      width: 10%;
+      background-color: #111;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 10px;
+      box-sizing: border-box;
     }
 
-    #logo img {
-      width:100%;
-      height:auto;
-      border:none;
-      background:none;
-      border-radius:50%;
-      box-shadow:none;
-      animation:pulse 3s infinite ease-in-out;
+    .sidebar img {
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      border: none;
     }
 
-    @keyframes pulse {
-      0% { transform:scale(1); opacity:1; }
-      50% { transform:scale(1.05); opacity:0.9; }
-      100% { transform:scale(1); opacity:1; }
+    .date-time {
+      text-align: center;
+      font-size: 1rem;
+      color: #fff;
+      line-height: 1.5em;
     }
 
-    .date, .clock {
-      text-align:center;
-      font-size:1.1em;
-    }
-
-    /* ---- ZONE PRINCIPALE ---- */
+    /* --- MAIN AREA --- */
     .main {
-      width:90%;
-      position:relative;
-      overflow:hidden;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      background:black;
+      flex-grow: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
-    .carousel-item {
-      position:absolute;
-      width:100%;
-      height:100%;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      opacity:0;
-      transition:opacity 1.5s ease-in-out;
+    .content {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
     }
 
-    .carousel-item.active {
-      opacity:1;
-      z-index:1;
+    .content.active {
+      opacity: 1;
     }
 
-    img, video, canvas {
-      max-width:100%;
-      max-height:100%;
-      object-fit:contain;
+    img, video, iframe, canvas {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
     }
 
-    #fallback-logo {
-      width:auto;
-      height:80vh;
-      max-width:90%;
-      object-fit:contain;
-      display:block;
-      margin:auto;
-      border:none;
-      background:none;
-      box-shadow:none;
+    .logo-fallback {
+      width: 50%;
+      height: auto;
     }
   </style>
 </head>
 <body>
-  <div class="sidebar">
-    <div id="logo"><img src="logo-TCJ.jpg" alt="Logo TC Jocassien"></div>
-    <div>
-      <div class="date" id="date"></div>
-      <div class="clock" id="clock"></div>
+  <div class="container">
+    <div class="sidebar">
+      <img src="logo-TCJ.jpg" alt="Logo TC Jocassien">
+      <div class="date-time">
+        <div id="date"></div>
+        <div id="time"></div>
+      </div>
+    </div>
+
+    <div class="main" id="carousel">
+      <!-- Contenu dynamique ici -->
     </div>
   </div>
 
-  <div class="main">
-    <div id="carousel"></div>
-  </div>
-
-  <!-- PDF.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-
   <script>
-    const PROXY_URL = "https://tcj-proxy.onrender.com";
+    const API_URL = "https://tcj-proxy.onrender.com/files";
+    const carousel = document.getElementById("carousel");
+    let files = [];
     let currentIndex = 0;
-    let timer;
-    let items = [];
 
-    /* ---- HORLOGE ---- */
-    function updateClock() {
-      const now = new Date();
-      document.getElementById("clock").textContent = now.toLocaleTimeString("fr-FR", {hour:'2-digit',minute:'2-digit'});
-      document.getElementById("date").textContent = now.toLocaleDateString("fr-FR", {weekday:'long', day:'2-digit', month:'long'});
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-
-    /* ---- CHARGEMENT DES FICHIERS ---- */
     async function fetchFiles() {
       try {
-        const res = await fetch(`${PROXY_URL}/files`);
+        const res = await fetch(API_URL);
         const data = await res.json();
         if (!data.files || data.files.length === 0) {
-          document.getElementById("carousel").innerHTML =
-            '<img id="fallback-logo" src="logo-TCJ.jpg" alt="Logo TC Jocassien">';
-          return;
+          showFallbackLogo();
+        } else {
+          files = data.files;
+          displayCarousel();
         }
-
-        items = data.files.map(file => {
-          let type = "image";
-          let duration = 8000;
-          if (file.mimeType.includes("video")) {
-            type = "video"; duration = 999999; // handled by video end
-          } else if (file.mimeType.includes("pdf")) {
-            type = "pdf"; duration = 20000;
-          }
-          return {...file, type, duration};
-        });
-
-        displayCarousel();
       } catch (err) {
         console.error("Erreur récupération fichiers:", err);
-        document.getElementById("carousel").innerHTML =
-          '<img id="fallback-logo" src="logo-TCJ.jpg" alt="Logo TC Jocassien">';
+        showFallbackLogo();
       }
     }
 
-    /* ---- AFFICHAGE DU CARROUSEL ---- */
-    async function displayCarousel() {
-      const carousel = document.getElementById("carousel");
+    function showFallbackLogo() {
+      carousel.innerHTML = `
+        <div class="content active">
+          <img src="logo-TCJ.jpg" alt="Logo TC Jocassien" class="logo-fallback">
+        </div>
+      `;
+    }
+
+    function displayCarousel() {
+      if (files.length === 0) return showFallbackLogo();
       carousel.innerHTML = "";
 
-      for (const item of items) {
+      files.forEach((file, index) => {
         const div = document.createElement("div");
-        div.className = "carousel-item";
+        div.classList.add("content");
+        if (index === 0) div.classList.add("active");
 
-        if (item.type === "image") {
-          const img = document.createElement("img");
-          img.src = item.webContentLink;
-          div.appendChild(img);
-        } else if (item.type === "video") {
-          const vid = document.createElement("video");
-          vid.src = item.webContentLink;
-          vid.autoplay = true;
-          vid.loop = false;
-          vid.muted = true;
-          vid.playsInline = true;
-          div.appendChild(vid);
-        } else if (item.type === "pdf") {
-          const canvas = document.createElement("canvas");
-          div.appendChild(canvas);
-
-          try {
-            const pdf = await pdfjsLib.getDocument(item.webContentLink).promise;
-            const page = await pdf.getPage(1);
-            const viewport = page.getViewport({ scale: 1.8 });
-            const context = canvas.getContext("2d");
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            await page.render({canvasContext: context, viewport}).promise;
-          } catch (e) {
-            console.error("Erreur chargement PDF", item.name, e);
-          }
+        if (file.mimeType.startsWith("image/")) {
+          div.innerHTML = `<img src="${file.webContentLink}" alt="${file.name}">`;
+        } else if (file.mimeType.startsWith("video/")) {
+          div.innerHTML = `<video src="${file.webContentLink}" muted autoplay loop playsinline></video>`;
+        } else if (file.mimeType === "application/pdf") {
+          div.innerHTML = `<iframe src="${file.webContentLink}" frameborder="0" style="width:100%;height:100%;"></iframe>`;
         }
 
         carousel.appendChild(div);
-      }
+      });
 
-      if (items.length > 0) {
-        document.querySelector(".carousel-item").classList.add("active");
-        startCarousel();
-      }
-    }
-
-    function nextItem() {
-      const elems = document.querySelectorAll(".carousel-item");
-      if (elems.length === 0) return;
-
-      elems[currentIndex].classList.remove("active");
-      currentIndex = (currentIndex + 1) % elems.length;
-      elems[currentIndex].classList.add("active");
-
-      const currentItem = items[currentIndex];
-      clearTimeout(timer);
-
-      if (currentItem.type === "video") {
-        const videoEl = elems[currentIndex].querySelector("video");
-        if (videoEl) {
-          const onEnded = () => {
-            videoEl.removeEventListener("ended", onEnded);
-            nextItem();
-          };
-          videoEl.addEventListener("ended", onEnded);
-          timer = setTimeout(() => {
-            videoEl.removeEventListener("ended", onEnded);
-            nextItem();
-          }, 10 * 60 * 1000);
-        }
-      } else {
-        timer = setTimeout(nextItem, currentItem.duration);
-      }
+      startCarousel();
     }
 
     function startCarousel() {
-      if (items.length === 0) return;
-      clearTimeout(timer);
+      const slides = document.querySelectorAll(".content");
+      let delay = 10000;
 
-      const currentItem = items[0];
-      if (currentItem.type === "video") {
-        const videoEl = document.querySelector(".carousel-item video");
-        if (videoEl) {
-          const onEnded = () => {
-            videoEl.removeEventListener("ended", onEnded);
-            nextItem();
-          };
-          videoEl.addEventListener("ended", onEnded);
-          timer = setTimeout(() => {
-            videoEl.removeEventListener("ended", onEnded);
-            nextItem();
-          }, 10 * 60 * 1000);
+      function nextSlide() {
+        slides[currentIndex].classList.remove("active");
+        currentIndex = (currentIndex + 1) % slides.length;
+        slides[currentIndex].classList.add("active");
+
+        const currentFile = files[currentIndex];
+        if (currentFile.mimeType.startsWith("video/")) {
+          const video = slides[currentIndex].querySelector("video");
+          delay = video.duration ? video.duration * 1000 : 10000;
+        } else if (currentFile.mimeType === "application/pdf") {
+          delay = 15000;
+        } else {
+          delay = 10000;
         }
-      } else {
-        timer = setTimeout(nextItem, currentItem.duration);
+
+        setTimeout(nextSlide, delay);
       }
+
+      setTimeout(nextSlide, delay);
     }
 
+    function updateDateTime() {
+      const now = new Date();
+      const date = now.toLocaleDateString("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      });
+      const time = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+      document.getElementById("date").textContent = date;
+      document.getElementById("time").textContent = time;
+    }
+
+    setInterval(updateDateTime, 1000);
+    updateDateTime();
+
     fetchFiles();
-    // Actualisation automatique toutes les 20 minutes
-    setInterval(fetchFiles, 20 * 60 * 1000);
+    setInterval(fetchFiles, 10 * 60 * 1000); // 10 min
   </script>
 </body>
 </html>
