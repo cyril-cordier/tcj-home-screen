@@ -31,12 +31,12 @@
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
-      position: relative; /* Pour superposer le contenu */
+      position: relative;
     }
     .sidebar-content {
       width: 100%;
       text-align: center;
-      z-index: 1; /* Assure que le contenu est au-dessus du fond */
+      z-index: 1;
     }
     .sidebar img {
       width: 100%;
@@ -51,7 +51,7 @@
       color: #fff;
       line-height: 1.5em;
       z-index: 1;
-      background-color: rgba(0, 0, 0, 0.5); /* Fond semi-transparent pour améliorer la lisibilité (optionnel) */
+      background-color: rgba(0, 0, 0, 0.5);
       padding: 5px;
       border-radius: 5px;
     }
@@ -90,6 +90,14 @@
       width: 50%;
       height: auto;
     }
+    .video-placeholder {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
   </style>
 </head>
 <body>
@@ -110,86 +118,163 @@
     </div>
   </div>
   <script>
+    // Variables globales
     const API_URL = "https://tcj-proxy.onrender.com/files";
     const carousel = document.getElementById("carousel");
-    let files = [];
+    let files = []; // Liste actuelle des fichiers
+    let lastFiles = []; // Liste précédente pour comparaison
     let currentIndex = 0;
-    async function fetchFiles() {
-      try {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        if (!data.files || data.files.length === 0) {
-          showFallbackLogo();
-        } else {
-          files = data.files;
-          displayCarousel();
-        }
-      } catch (err) {
-        console.error("Erreur récupération fichiers:", err);
-        showFallbackLogo();
-      }
+    let contentElements = []; // Stocke les éléments DOM des fichiers
+
+    // Fonction pour comparer deux listes de fichiers
+    function areFilesUnchanged(newFiles, oldFiles) {
+      if (newFiles.length !== oldFiles.length) return false;
+      return newFiles.every((newFile, index) => {
+        const oldFile = oldFiles[index];
+        return newFile.id === oldFile.id && newFile.modifiedTime === oldFile.modifiedTime;
+      });
     }
+
+    // Fonction pour afficher le logo de fallback
     function showFallbackLogo() {
       carousel.innerHTML = `
         <div class="content active">
           <img src="logo-TCJ.png" alt="Logo TC Jocassien" class="logo-fallback">
         </div>
       `;
+      contentElements = [document.querySelector(".content")];
     }
+
+    // Fonction pour afficher le carrousel (optimisée pour les vidéos)
     function displayCarousel() {
       if (files.length === 0) return showFallbackLogo();
+
+      // Si les fichiers n'ont pas changé, on ne recrée pas les éléments DOM
+      if (lastFiles.length > 0 && areFilesUnchanged(files, lastFiles)) {
+        console.log("⏩ Aucun changement, réutilisation des éléments existants");
+        return;
+      }
+
+      // Sinon, on recrée les éléments
       carousel.innerHTML = "";
+      contentElements = [];
       files.forEach((file, index) => {
         const div = document.createElement("div");
         div.classList.add("content");
         if (index === 0) div.classList.add("active");
+
         if (file.mimeType.startsWith("image/")) {
           div.innerHTML = `<img src="${file.webContentLink}" alt="${file.name}">`;
         } else if (file.mimeType.startsWith("video/")) {
-          div.innerHTML = `<video src="${file.webContentLink}" muted autoplay loop playsinline></video>`;
+          div.innerHTML = `
+            <div class="video-placeholder">
+              <video src="${file.webContentLink}" muted autoplay loop playsinline
+                     preload="auto" style="display:none;"></video>
+            </div>
+          `;
+          const video = div.querySelector("video");
+          const placeholder = div.querySelector(".video-placeholder");
+          video.addEventListener("canplay", () => {
+            placeholder.style.display = "none";
+            video.style.display = "block";
+          });
         } else if (file.mimeType === "application/pdf") {
           div.innerHTML = `<iframe src="${file.webContentLink}" frameborder="0" style="width:100%;height:100%;"></iframe>`;
         }
+
         carousel.appendChild(div);
+        contentElements.push(div);
       });
+
       startCarousel();
+      lastFiles = [...files]; // Mise à jour de l'état précédent
     }
+
+    // Fonction pour démarrer le carrousel avec effet de fondu
     function startCarousel() {
-      const slides = document.querySelectorAll(".content");
+      if (contentElements.length === 0) return;
+
       let delay = 10000;
       function nextSlide() {
-        slides[currentIndex].classList.remove("active");
-        currentIndex = (currentIndex + 1) % slides.length;
-        slides[currentIndex].classList.add("active");
+        contentElements[currentIndex].classList.remove("active");
+        currentIndex = (currentIndex + 1) % contentElements.length;
+        contentElements[currentIndex].classList.add("active");
+
         const currentFile = files[currentIndex];
         if (currentFile.mimeType.startsWith("video/")) {
-          const video = slides[currentIndex].querySelector("video");
+          const video = contentElements[currentIndex].querySelector("video");
           delay = video.duration ? video.duration * 1000 : 10000;
         } else if (currentFile.mimeType === "application/pdf") {
           delay = 15000;
         } else {
           delay = 10000;
         }
+
         setTimeout(nextSlide, delay);
       }
       setTimeout(nextSlide, delay);
     }
+
+    // Fonction pour récupérer les fichiers (optimisée pour les vidéos)
+    async function fetchFiles() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        if (!data.files || data.files.length === 0) {
+          showFallbackLogo();
+          return;
+        }
+
+        const newFiles = data.files;
+        // Mise à jour des URLs avec un paramètre de cache-busting (sauf pour les vidéos)
+        newFiles.forEach(file => {
+          const oldFile = files.find(f => f.id === file.id);
+          if (oldFile && oldFile.modifiedTime !== file.modifiedTime && !file.mimeType.startsWith("video/")) {
+            file.webContentLink += `?t=${Date.parse(file.modifiedTime)}`;
+          }
+        });
+
+        files = newFiles;
+        displayCarousel();
+        preloadFiles();
+      } catch (err) {
+        console.error("Erreur récupération fichiers:", err);
+        showFallbackLogo();
+      }
+    }
+
+    // Fonction pour précharger les fichiers (optimisée pour les vidéos)
+    function preloadFiles() {
+      files.forEach(file => {
+        if (file.mimeType.startsWith("image/")) {
+          const img = new Image();
+          img.src = file.webContentLink;
+        } else if (file.mimeType.startsWith("video/")) {
+          const video = document.createElement("video");
+          video.src = file.webContentLink;
+          video.preload = "metadata"; // Précharge uniquement les métadonnées
+        }
+      });
+    }
+
+    // Mise à jour de la date et de l'heure
     function updateDateTime() {
       const now = new Date();
       const date = now.toLocaleDateString("fr-FR", {
         weekday: "long",
         day: "numeric",
-        month: "long",
-        year: "numeric"
+        month: "long"
       });
       const time = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
       document.getElementById("date").textContent = date;
       document.getElementById("time").textContent = time;
     }
-    setInterval(updateDateTime, 1000);
+
+    // Initialisation
     updateDateTime();
+    setInterval(updateDateTime, 1000);
     fetchFiles();
-    setInterval(fetchFiles, 10 * 60 * 1000); // 10 min
+    setInterval(fetchFiles, 10 * 60 * 1000); // Rafraîchissement toutes les 10 minutes
   </script>
 </body>
 </html>
