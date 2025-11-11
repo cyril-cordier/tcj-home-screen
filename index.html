@@ -20,7 +20,7 @@
     }
     /* --- SIDEBAR --- */
     .sidebar {
-      width: 10%;
+      width: 15%;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -47,7 +47,7 @@
     }
     .date-time {
       text-align: center;
-      font-size: 1rem;
+      font-size: 2.5rem;
       color: #fff;
       line-height: 1.5em;
       z-index: 1;
@@ -300,10 +300,11 @@
     // Mise à jour de la date et de l'heure
     function updateDateTime() {
       const now = new Date();
+      // date au format jj/mm/aaaa
       const date = now.toLocaleDateString("fr-FR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long"
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
       });
       const time = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
       document.getElementById("date").textContent = date;
