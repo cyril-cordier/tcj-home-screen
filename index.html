@@ -172,50 +172,27 @@
           div.innerHTML = `<img src="${file.webContentLink}" alt="${file.name}">`;
         } else if (file.mimeType.startsWith("video/")) {
           div.innerHTML = `
-            <div class="video-placeholder">
-              <video src="${file.webContentLink}" muted autoplay loop playsinline
-                     preload="auto" style="display:none;"></video>
-            </div>
+            <video src="${file.webContentLink}" muted autoplay loop playsinline
+                   preload="metadata" style="width:100%;height:100%;object-fit:contain;"></video>
           `;
           const video = div.querySelector("video");
-          const placeholder = div.querySelector(".video-placeholder");
           
           // Afficher la vidéo dès qu'elle peut être lue
           video.addEventListener("canplay", () => {
             console.log(`✅ Vidéo prête: ${file.name}`);
-            placeholder.style.display = "none";
-            video.style.display = "block";
             video.play().catch(err => console.error("Erreur lecture vidéo:", err));
-          });
+          }, { once: true });
           
           // Gestion d'erreur
           video.addEventListener("error", (e) => {
             console.error(`❌ Erreur vidéo ${file.name}:`, e);
             console.error("Code erreur:", video.error?.code, "Message:", video.error?.message);
-            // Afficher quand même la vidéo après un délai (peut-être qu'elle se chargera)
-            setTimeout(() => {
-              if (video.readyState >= 2) { // HAVE_CURRENT_DATA
-                placeholder.style.display = "none";
-                video.style.display = "block";
-              }
-            }, 2000);
           });
-          
-          // Fallback: afficher la vidéo après 3 secondes même si canplay ne s'est pas déclenché
-          setTimeout(() => {
-            if (video.readyState >= 2 && video.style.display === "none") {
-              console.log(`⏱️ Affichage vidéo après timeout: ${file.name}`);
-              placeholder.style.display = "none";
-              video.style.display = "block";
-            }
-          }, 3000);
-          
-          // Forcer le chargement
-          video.load();
           
           // Si c'est la première vidéo et qu'elle est active, démarrer la lecture
           if (index === 0 && div.classList.contains("active")) {
-            video.addEventListener("loadeddata", () => {
+            video.addEventListener("loadedmetadata", () => {
+              console.log(`▶️ Démarrage vidéo initiale: ${file.name}`);
               video.play().catch(err => console.error("Erreur lecture vidéo initiale:", err));
             }, { once: true });
           }
