@@ -179,10 +179,46 @@
           `;
           const video = div.querySelector("video");
           const placeholder = div.querySelector(".video-placeholder");
+          
+          // Afficher la vidéo dès qu'elle peut être lue
           video.addEventListener("canplay", () => {
+            console.log(`✅ Vidéo prête: ${file.name}`);
             placeholder.style.display = "none";
             video.style.display = "block";
+            video.play().catch(err => console.error("Erreur lecture vidéo:", err));
           });
+          
+          // Gestion d'erreur
+          video.addEventListener("error", (e) => {
+            console.error(`❌ Erreur vidéo ${file.name}:`, e);
+            console.error("Code erreur:", video.error?.code, "Message:", video.error?.message);
+            // Afficher quand même la vidéo après un délai (peut-être qu'elle se chargera)
+            setTimeout(() => {
+              if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+                placeholder.style.display = "none";
+                video.style.display = "block";
+              }
+            }, 2000);
+          });
+          
+          // Fallback: afficher la vidéo après 3 secondes même si canplay ne s'est pas déclenché
+          setTimeout(() => {
+            if (video.readyState >= 2 && video.style.display === "none") {
+              console.log(`⏱️ Affichage vidéo après timeout: ${file.name}`);
+              placeholder.style.display = "none";
+              video.style.display = "block";
+            }
+          }, 3000);
+          
+          // Forcer le chargement
+          video.load();
+          
+          // Si c'est la première vidéo et qu'elle est active, démarrer la lecture
+          if (index === 0 && div.classList.contains("active")) {
+            video.addEventListener("loadeddata", () => {
+              video.play().catch(err => console.error("Erreur lecture vidéo initiale:", err));
+            }, { once: true });
+          }
         } else if (file.mimeType === "application/pdf") {
           div.innerHTML = `<iframe src="${file.webContentLink}" frameborder="0" style="width:100%;height:100%;"></iframe>`;
         }
@@ -208,7 +244,29 @@
         const currentFile = files[currentIndex];
         if (currentFile.mimeType.startsWith("video/")) {
           const video = contentElements[currentIndex].querySelector("video");
-          delay = video.duration ? video.duration * 1000 : 10000;
+          if (video) {
+            // Relancer la vidéo si nécessaire
+            video.currentTime = 0; // Revenir au début
+            video.play().catch(err => console.error("Erreur lecture vidéo:", err));
+            // Attendre que la durée soit disponible
+            const getVideoDuration = () => {
+              if (video.duration && !isNaN(video.duration) && video.duration > 0) {
+                return video.duration * 1000;
+              }
+              return 10000; // Durée par défaut
+            };
+            delay = getVideoDuration();
+            // Si la durée n'est pas encore disponible, attendre un peu
+            if (delay === 10000) {
+              video.addEventListener("loadedmetadata", () => {
+                if (video.duration && !isNaN(video.duration) && video.duration > 0) {
+                  delay = video.duration * 1000;
+                }
+              }, { once: true });
+            }
+          } else {
+            delay = 10000;
+          }
         } else if (currentFile.mimeType === "application/pdf") {
           delay = 15000;
         } else {
