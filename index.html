@@ -20,14 +20,14 @@
     }
     /* --- SIDEBAR --- */
     .sidebar {
-      width: 15%;
+      width: 10%;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       align-items: center;
-      padding: 20px 10px;
+      padding: 0.2rem 0.5rem;
       box-sizing: border-box;
-      background-image: url('TCJ-bg-left.jpg');
+      background-image: url('TCJ-bg-left4.png');
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
@@ -47,7 +47,7 @@
     }
     .date-time {
       text-align: center;
-      font-size: 2.5rem;
+      font-size: 1.4rem;
       color: #fff;
       line-height: 1.5em;
       z-index: 1;
@@ -103,12 +103,22 @@
       justify-content: center;
       align-items: center;
     }
+    #logo img { 
+      height:auto; 
+      margin-bottom:20px; 
+      animation: pulse 3s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="sidebar">
-      <div class="sidebar-content">
+      <div class="sidebar-content" id="logo">
         <img src="logo-TCJ.png" alt="Logo TC Jocassien">
       </div>
       <div class="sidebar-content">
@@ -134,11 +144,12 @@
     // Fonction pour comparer deux listes de fichiers
     function areFilesUnchanged(newFiles, oldFiles) {
       if (newFiles.length !== oldFiles.length) return false;
-      return newFiles.every((newFile, index) => {
-        const oldFile = oldFiles[index];
-        return newFile.id === oldFile.id && newFile.modifiedTime === oldFile.modifiedTime;
-      });
+
+      const mapOld = new Map(oldFiles.map(f => [f.id, f.modifiedTime]));
+
+      return newFiles.every(f => mapOld.get(f.id) === f.modifiedTime);
     }
+
 
     // Fonction pour afficher le logo de fallback
     function showFallbackLogo() {
@@ -163,6 +174,7 @@
       // Sinon, on recrée les éléments
       carousel.innerHTML = "";
       contentElements = [];
+      currentIndex = 0;
       files.forEach((file, index) => {
         const div = document.createElement("div");
         div.classList.add("content");
@@ -279,7 +291,14 @@
         preloadFiles();
       } catch (err) {
         console.error("Erreur récupération fichiers:", err);
-        showFallbackLogo();
+
+        // ❗ Si on n’a AUCUN fichier déjà chargé → on montre le logo
+        if (files.length === 0) {
+          showFallbackLogo();
+        }
+
+        // ❗ Sinon : on ne touche pas au carrousel en cours
+        return;
       }
     }
 
