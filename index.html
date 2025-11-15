@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Affichage Dynamique TC Jocassien</title>
+  <title>Ecran d'accueil TC Jocassien</title>
   <style>
     html, body {
       margin: 0;
@@ -45,6 +45,32 @@
       border: none;
       z-index: 1;
     }
+    .welcome-info {
+      text-align: center;
+      color: #fff;
+      z-index: 1;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 1rem;
+      border-radius: 5px;
+      margin: auto;
+      margin-left: 3rem;
+      margin-right: auto;
+    }
+    .welcome-info h2 {
+      font-size: 1.3rem;
+      margin: 0 0 0.5rem 0;
+      font-weight: bold;
+    }
+    .welcome-info p {
+      font-size: 1rem;
+      margin: 0.3rem 0;
+      line-height: 1.4;
+    }
+    .welcome-info .contact-label {
+      font-size: 0.9rem;
+      margin-top: 0.8rem;
+      margin-bottom: 0.3rem;
+    }
     .date-time {
       text-align: center;
       font-size: 1.4rem;
@@ -53,8 +79,9 @@
       z-index: 1;
       background-color: rgba(0, 0, 0, 0.5);
       padding: 5px;
-      margin-bottom: 0.8rem;
-      margin-left: 0.8rem;
+      margin-bottom: 2.5rem;
+      margin-left: 6.5rem;
+      margin-right: 3.5rem;
       border-radius: 5px;
     }
     /* --- MAIN AREA --- */
@@ -65,7 +92,8 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      background-image: url('TCJ-bg.jpg');
+      background-image: url('TCJ-bg-left4.png');
+      /* background-image: url('TCJ-bg.jpg'); */
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
@@ -106,7 +134,7 @@
       align-items: center;
     }
     #logo img { 
-      height:auto; 
+      height:15rem; 
       margin-left: 0.5rem;
       margin-top: 0.5rem;
       animation: pulse 3s infinite ease-in-out;
@@ -123,6 +151,14 @@
     <div class="sidebar">
       <div class="sidebar-content" id="logo">
         <img src="logo-TCJ.png" alt="Logo TC Jocassien">
+      </div>
+      <div class="sidebar-content">
+        <div class="welcome-info">
+          <h2>Bienvenue au<br>TC Jocassien</h2>
+          <p class="contact-label">Pour nous contacter</p>
+          <p>tcjoc.contact@gmail.com</p>
+          <p>06 49 60 06 36</p>
+        </div>
       </div>
       <div class="sidebar-content">
         <div class="date-time">
@@ -162,6 +198,8 @@
         </div>
       `;
       contentElements = [document.querySelector(".content")];
+      // Définir le fond sur TCJ-bg-left4.png
+      carousel.style.backgroundImage = "url('TCJ-bg.jpg')";
     }
 
     // Fonction pour afficher le carrousel (optimisée pour les vidéos)
@@ -178,6 +216,8 @@
       carousel.innerHTML = "";
       contentElements = [];
       currentIndex = 0;
+      // Remettre le fond par défaut (défini dans le CSS)
+      carousel.style.backgroundImage = "";
       files.forEach((file, index) => {
         const div = document.createElement("div");
         div.classList.add("content");
