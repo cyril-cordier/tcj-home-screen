@@ -177,6 +177,54 @@
       text-align: center;
       line-height: 1.1;
     }
+    /* --- PROGRESS BAR --- */
+    .progress-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1.5rem;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.4), transparent);
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .progress-segment {
+      flex: 1;
+      height: 4px;
+      background-color: rgba(255, 255, 255, 0.4);
+      border-radius: 2px;
+      transition: all 0.3s ease;
+      max-width: 60px;
+      min-width: 20px;
+    }
+    .progress-segment.active {
+      background-color: #fff;
+      height: 6px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+      transform: scaleY(1.2);
+    }
+    .progress-indicator {
+      position: absolute;
+      bottom: 1.8rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 0.85rem;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 0.3rem 0.7rem;
+      border-radius: 5px;
+      z-index: 1001;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .progress-indicator .current {
+      font-weight: bold;
+      font-size: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -208,6 +256,10 @@
     </div>
     <div class="main" id="carousel">
       <!-- Contenu dynamique ici -->
+      <div class="progress-indicator" id="progressIndicator" style="display: none;">
+        <span class="current" id="currentIndex">1</span> / <span id="totalCount">0</span>
+      </div>
+      <div class="progress-bar" id="progressBar" style="display: none;"></div>
     </div>
   </div>
   <script>
@@ -228,17 +280,65 @@
       return newFiles.every(f => mapOld.get(f.id) === f.modifiedTime);
     }
 
+    // Fonction pour créer/mettre à jour la barre d'avancement
+    function updateProgressBar() {
+      const progressBar = document.getElementById("progressBar");
+      const progressIndicator = document.getElementById("progressIndicator");
+      const currentIndexSpan = document.getElementById("currentIndex");
+      const totalCountSpan = document.getElementById("totalCount");
+
+      if (!progressBar || !progressIndicator) {
+        console.error("Éléments de la barre d'avancement non trouvés");
+        return;
+      }
+
+      if (files.length === 0) {
+        progressBar.style.display = "none";
+        progressIndicator.style.display = "none";
+        return;
+      }
+
+      console.log(`📊 Mise à jour barre d'avancement: ${currentIndex + 1}/${files.length}`);
+
+      // Afficher la barre d'avancement
+      progressBar.style.display = "flex";
+      progressIndicator.style.display = "block";
+
+      // Mettre à jour l'indicateur numérique
+      currentIndexSpan.textContent = currentIndex + 1;
+      totalCountSpan.textContent = files.length;
+
+      // Créer les segments
+      progressBar.innerHTML = "";
+      for (let i = 0; i < files.length; i++) {
+        const segment = document.createElement("div");
+        segment.classList.add("progress-segment");
+        if (i === currentIndex) {
+          segment.classList.add("active");
+        }
+        progressBar.appendChild(segment);
+      }
+    }
+
 
     // Fonction pour afficher le logo de fallback
     function showFallbackLogo() {
-      carousel.innerHTML = `
-        <div class="content active" id="logo">
-          <img src="logo-TCJ.png" alt="Logo TC Jocassien" class="logo-fallback" >
-        </div>
-      `;
-      contentElements = [document.querySelector(".content")];
+      // Supprimer uniquement les éléments .content existants
+      const existingContent = carousel.querySelectorAll(".content");
+      existingContent.forEach(el => el.remove());
+      
+      const logoDiv = document.createElement("div");
+      logoDiv.classList.add("content", "active");
+      logoDiv.id = "logo";
+      logoDiv.innerHTML = `<img src="logo-TCJ.png" alt="Logo TC Jocassien" class="logo-fallback" >`;
+      carousel.appendChild(logoDiv);
+      
+      contentElements = [logoDiv];
       // Définir le fond sur TCJ-bg-left4.png
       carousel.style.backgroundImage = "url('TCJ-bg.jpg')";
+      // Masquer la barre d'avancement
+      document.getElementById("progressBar").style.display = "none";
+      document.getElementById("progressIndicator").style.display = "none";
     }
 
     // Fonction pour afficher le carrousel (optimisée pour les vidéos)
@@ -248,11 +348,14 @@
       // Si les fichiers n'ont pas changé, on ne recrée pas les éléments DOM
       if (lastFiles.length > 0 && areFilesUnchanged(files, lastFiles)) {
         console.log("⏩ Aucun changement, réutilisation des éléments existants");
+        updateProgressBar();
         return;
       }
 
       // Sinon, on recrée les éléments
-      carousel.innerHTML = "";
+      // Supprimer uniquement les éléments .content existants (préserver la barre d'avancement)
+      const existingContent = carousel.querySelectorAll(".content");
+      existingContent.forEach(el => el.remove());
       contentElements = [];
       currentIndex = 0;
       // Remettre le fond par défaut (défini dans le CSS)
@@ -298,6 +401,7 @@
         contentElements.push(div);
       });
 
+      updateProgressBar();
       startCarousel();
       lastFiles = [...files]; // Mise à jour de l'état précédent
     }
@@ -311,6 +415,7 @@
         contentElements[currentIndex].classList.remove("active");
         currentIndex = (currentIndex + 1) % contentElements.length;
         contentElements[currentIndex].classList.add("active");
+        updateProgressBar();
 
         const currentFile = files[currentIndex];
         if (currentFile.mimeType.startsWith("video/")) {
@@ -351,8 +456,50 @@
       setTimeout(nextSlide, delay);
     }
 
+    // Fonction pour détecter si on est en local
+    function isLocal() {
+      return window.location.hostname === 'localhost' || 
+             window.location.hostname === '127.0.0.1' || 
+             window.location.protocol === 'file:';
+    }
+
+    // Fonction pour générer des fichiers simulés en local
+    function generateLocalFiles() {
+      const localImages = [
+        'TCJ-bg.jpg',
+        'TCJ-bg-left.jpg',
+        'TCJ-bg-left2.png',
+        'TCJ-bg-left3.png',
+        'TCJ-bg-left4.png',
+        'logo-TCJ.jpg',
+        'logo-TCJ.png'
+      ];
+
+      return localImages.map((filename, index) => {
+        const isPng = filename.endsWith('.png');
+        return {
+          id: `local-${index}`,
+          name: filename,
+          mimeType: isPng ? 'image/png' : 'image/jpeg',
+          webContentLink: filename,
+          modifiedTime: new Date().toISOString()
+        };
+      });
+    }
+
     // Fonction pour récupérer les fichiers (optimisée pour les vidéos)
     async function fetchFiles() {
+      // En local, utiliser les images du repo
+      if (isLocal()) {
+        console.log("🏠 Mode local : utilisation des images du repo");
+        const localFiles = generateLocalFiles();
+        files = localFiles;
+        displayCarousel();
+        preloadFiles();
+        return;
+      }
+
+      // En production, utiliser l'API
       try {
         const res = await fetch(API_URL);
         const data = await res.json();
@@ -376,7 +523,7 @@
       } catch (err) {
         console.error("Erreur récupération fichiers:", err);
 
-        // ❗ Si on n’a AUCUN fichier déjà chargé → on montre le logo
+        // ❗ Si on n'a AUCUN fichier déjà chargé → on montre le logo
         if (files.length === 0) {
           showFallbackLogo();
         }
