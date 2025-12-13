@@ -322,21 +322,23 @@
             // Attendre que la durée soit disponible
             const getVideoDuration = () => {
               if (video.duration && !isNaN(video.duration) && video.duration > 0) {
-                return video.duration * 1000;
+                // Minimum de 15 secondes pour laisser le temps de voir la vidéo
+                return Math.max(video.duration * 1000, 15000);
               }
-              return 10000; // Durée par défaut
+              return 15000; // Durée par défaut
             };
             delay = getVideoDuration();
             // Si la durée n'est pas encore disponible, attendre un peu
-            if (delay === 10000) {
+            if (delay === 15000) {
               video.addEventListener("loadedmetadata", () => {
                 if (video.duration && !isNaN(video.duration) && video.duration > 0) {
-                  delay = video.duration * 1000;
+                  // Minimum de 15 secondes pour laisser le temps de voir la vidéo
+                  delay = Math.max(video.duration * 1000, 15000);
                 }
               }, { once: true });
             }
           } else {
-            delay = 10000;
+            delay = 15000;
           }
         } else if (currentFile.mimeType === "application/pdf") {
           delay = 15000;
