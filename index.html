@@ -13,8 +13,15 @@
       color: #fff;
       font-family: Arial, sans-serif;
       overflow: hidden;
+      /* Masquer les scrollbars */
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE et Edge */
       /* Base font size adaptative - sera ajusté par JavaScript */
       font-size: clamp(12px, 1.2vw, 20px);
+    }
+    /* Masquer les scrollbars pour WebKit (Chrome, Safari) */
+    html::-webkit-scrollbar, body::-webkit-scrollbar {
+      display: none;
     }
     .container {
       display: flex;
@@ -40,6 +47,13 @@
       height: 100vh;
       overflow-y: auto;
       overflow-x: hidden;
+      /* Masquer la scrollbar visuellement */
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE et Edge */
+    }
+    /* Masquer la scrollbar pour WebKit (Chrome, Safari) */
+    .sidebar::-webkit-scrollbar {
+      display: none;
     }
     .sidebar-content {
       width: 100%;
@@ -81,7 +95,7 @@
     }
     .date-time {
       text-align: center;
-      font-size: clamp(1rem, 1.4vw, 1.8rem);
+      font-size: clamp(1.2rem, 2.5vh, 2.5rem);
       color: #fff;
       line-height: 1.5em;
       z-index: 1;
