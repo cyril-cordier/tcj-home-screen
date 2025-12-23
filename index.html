@@ -383,7 +383,7 @@
           // Gestion d'erreur
           video.addEventListener("error", (e) => {
             console.error(`❌ Erreur vidéo ${file.name}:`, e);
-            console.error("Code erreur:", video.error?.code, "Message:", video.error?.message);
+            console.error("Code erreur:", video.error && video.error.code, "Message:", video.error && video.error.message);
           });
           
           // Si c'est la première vidéo et qu'elle est active, démarrer la lecture
