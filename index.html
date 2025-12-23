@@ -2,16 +2,19 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Ecran d'accueil TC Jocassien</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
+      width: 100%;
       color: #fff;
       font-family: Arial, sans-serif;
       overflow: hidden;
+      /* Base font size adaptative - sera ajusté par JavaScript */
+      font-size: clamp(12px, 1.2vw, 20px);
     }
     .container {
       display: flex;
@@ -21,6 +24,8 @@
     /* --- SIDEBAR --- */
     .sidebar {
       width: 20%;
+      min-width: 200px;
+      max-width: 400px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -32,6 +37,9 @@
       background-position: center;
       background-repeat: no-repeat;
       position: relative;
+      height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
     .sidebar-content {
       width: 100%;
@@ -57,23 +65,23 @@
       margin-right: 0.5rem;
     }
     .welcome-info h2 {
-      font-size: 1.3rem;
+      font-size: clamp(1rem, 1.3vw, 1.5rem);
       margin: 0 0 0.5rem 0;
       font-weight: bold;
     }
     .welcome-info p {
-      font-size: 1rem;
+      font-size: clamp(0.8rem, 1vw, 1.2rem);
       margin: 0.3rem 0;
       line-height: 1.4;
     }
     .welcome-info .contact-label {
-      font-size: 0.9rem;
+      font-size: clamp(0.7rem, 0.9vw, 1rem);
       margin-top: 0.8rem;
       margin-bottom: 0.3rem;
     }
     .date-time {
       text-align: center;
-      font-size: 1.4rem;
+      font-size: clamp(1rem, 1.4vw, 1.8rem);
       color: #fff;
       line-height: 1.5em;
       z-index: 1;
